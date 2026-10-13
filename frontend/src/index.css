@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Only the few things Tailwind utilities cannot express cleanly live here. */
+@layer base {
+  body { @apply bg-canvas font-sans text-ink antialiased leading-normal; }
+  :focus-visible { outline: 3px solid #f0a500; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+}
