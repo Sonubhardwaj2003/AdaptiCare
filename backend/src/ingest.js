@@ -4,14 +4,14 @@ const { Recording, Alarm } = require("./models");
 exports.validatePayload = (p) => {
   if (!p || !p.recording || !p.recording.edf || !(p.recording.duration_s > 0)) return "recording.edf and recording.duration_s are required";
   if (!p.settings || !(p.settings.window_s > 0)) return "settings.window_s is required";
-  if (!p.models) return "models is required";
+  const keys = Object.keys(p.models || {});
+  if (!keys.length || keys.some((k) => !["15", "30", "60"].includes(k))) return "models must contain at least one of 15, 30, 60";
   let len = null;
-  for (const d of ["15", "30", "60"]) {
+  for (const d of keys) {
     const m = p.models[d];
-    if (!m) return `models.${d} is missing`;
     const { window_start_sec: ws, probability: pr, alarms_sec: al, threshold } = m;
     if (!Array.isArray(ws) || !Array.isArray(pr) || !ws.length || ws.length !== pr.length) return `models.${d}: window_start_sec and probability must be non-empty arrays of the same length`;
-    if (len !== null && ws.length !== len) return "All three models must have the same number of windows";
+    if (len !== null && ws.length !== len) return "All models in one file must have the same number of windows";
     len = ws.length;
     if (!pr.every((x) => typeof x === "number" && x >= 0 && x <= 1)) return `models.${d}: probability values must be numbers between 0 and 1`;
     if (!Array.isArray(al) || !al.every(Number.isFinite)) return `models.${d}: alarms_sec must be an array of numbers`;

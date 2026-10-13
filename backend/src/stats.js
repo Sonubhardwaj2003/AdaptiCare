@@ -23,7 +23,7 @@ function averagePrecision(scores, labels) {
 // 1 = positive, 0 = negative, -1 = unscored
 function windowLabels(rec, L) {
   const w = rec.settings?.window_s || 5;
-  return rec.predictions["15"].window_start_sec.map((t) => {
+  return Object.values(rec.predictions)[0].window_start_sec.map((t) => {
     const e = t + w; let pos = false, unclean = false;
     for (const sz of rec.seizures) {
       if (t >= sz.start - SPH - L * 60 && e <= sz.start - SPH) pos = true;
@@ -67,14 +67,17 @@ exports.subjectStats = (recs) => {
     if (!seizures) continue;
     const ap = {}, baseline = {};
     for (const L of DUR) {
-      const labs = rs.flatMap((r) => windowLabels(r, +L));
-      const keep = labs.map((l, i) => (l >= 0 ? i : -1)).filter((i) => i >= 0);
-      const y = keep.map((i) => labs[i]);
-      baseline[L] = y.length ? y.reduce((a, b) => a + b, 0) / y.length : null;
+      const all = rs.flatMap((r) => windowLabels(r, +L));
+      baseline[L] = all.filter((l) => l >= 0).length ? all.filter((l) => l === 1).length / all.filter((l) => l >= 0).length : null;
       if (baseline[L] != null) base[L].push(baseline[L]);
       for (const m of DUR) {
-        const sc = rs.flatMap((r) => r.predictions[m].probability);
-        const v = averagePrecision(keep.map((i) => sc[i]), y.slice());
+        const rm = rs.filter((r) => r.predictions[m]); // only recordings that include model m
+        let v = null;
+        if (rm.length) {
+          const labs = rm.flatMap((r) => windowLabels(r, +L)), sc = rm.flatMap((r) => r.predictions[m].probability);
+          const keep = labs.map((l, i) => (l >= 0 ? i : -1)).filter((i) => i >= 0);
+          v = averagePrecision(keep.map((i) => sc[i]), keep.map((i) => labs[i]));
+        }
         (ap[m] ||= {})[L] = v;
         if (v != null) accum[m][L].push(v);
       }

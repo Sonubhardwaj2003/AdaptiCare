@@ -135,7 +135,10 @@ export function Viewer() {
     }), 100);
     return () => clearInterval(t);
   }, [play, speed, rec]);
-  const models = view === "compare" ? ["15", "30", "60"] : [view];
+  // Real data may contain only some of the 15/30/60 min models, so only offer the ones that exist.
+  const avail = rec ? ["15", "30", "60"].filter((m) => rec.predictions[m]) : [];
+  const shown = view === "compare" ? (avail.length > 1 ? "compare" : avail[0]) : avail.includes(view) ? view : avail[0];
+  const models = shown === "compare" ? avail : [shown];
   const onset = rec?.seizures[0]?.start;
   return (
     <Status loading={loading} error={error}>
@@ -143,8 +146,8 @@ export function Viewer() {
         <>
           <Head title={rec.edf} sub={`Patient ${rec.patient.code}. Predicted risk per 5 s window from the 15, 30 and 60 min models.`} />
           <div className="flex flex-wrap items-center justify-between gap-x-4">
-            <Tabs>{["15", "30", "60", "compare"].map((v) => (
-              <Button key={v} role="tab" aria-selected={view === v} variant={view === v ? "dark" : "default"} onClick={() => setView(v)}>{v === "compare" ? "Compare all" : `${v} min model`}</Button>
+            <Tabs>{[...avail, ...(avail.length > 1 ? ["compare"] : [])].map((v) => (
+              <Button key={v} role="tab" aria-selected={shown === v} variant={shown === v ? "dark" : "default"} onClick={() => setView(v)}>{v === "compare" ? "Compare all" : `${v} min model`}</Button>
             ))}</Tabs>
             <div className="mb-3.5 flex items-center gap-2">
               <Button variant="primary" onClick={() => { if (play) setPlay(false); else { if (pos == null) setPos(0); setPlay(true); } }}>{play ? "Pause" : pos == null ? "Replay" : "Resume"}</Button>
@@ -155,7 +158,7 @@ export function Viewer() {
               {pos != null && <span className="text-muted">{minutes(pos)}</span>}
             </div>
           </div>
-          <div className={view === "compare" ? "grid gap-3" : ""}>
+          <div className={shown === "compare" ? "grid gap-3" : ""}>
             {models.map((m) => <Chart key={m} model={rec.predictions[m]} rec={rec} upTo={pos ?? Infinity} title={`${m} min model`} />)}
           </div>
           <ul className="mt-3 flex flex-wrap gap-x-[18px] gap-y-1.5 text-[13.5px] text-muted">
@@ -342,15 +345,15 @@ export function Stats() {
   );
 }
 
-// export function About() {
-//   return (
-//     <>
-//       <Head title="About AdaptiCare" />
-//       <Card className="max-w-screen space-y-3.5">
-//         <p>AdaptiCare is a dashboard for studying how the length of the "pre-seizure" training label (15, 30 or 60 minutes) changes EEG seizure prediction that works on patients the model has never seen. It uses the public CHB-MIT dataset.</p>
-//         <p>Clinicians review recordings, replay model output over time, and handle alarms. The Results page compares the three label durations side by side.</p>
-//         <p className="text-muted">AdaptiCare is a research prototype built for a final-year project. It is not a clinical or diagnostic tool.</p>
-//       </Card>
-//     </>
-//   );
-// }
+export function About() {
+  return (
+    <>
+      <Head title="About AdaptiCare" />
+      <Card className="max-w-[70ch] space-y-3.5">
+        <p>AdaptiCare is a dashboard for studying how the length of the "pre-seizure" training label (15, 30 or 60 minutes) changes EEG seizure prediction that works on patients the model has never seen. It uses the public CHB-MIT dataset.</p>
+        <p>Clinicians review recordings, replay model output over time, and handle alarms. The Results page compares the three label durations side by side.</p>
+        <p className="text-muted">AdaptiCare is a research prototype built for a final-year project. It is not a clinical or diagnostic tool.</p>
+      </Card>
+    </>
+  );
+}

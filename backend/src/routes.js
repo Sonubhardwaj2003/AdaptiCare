@@ -126,8 +126,11 @@ r.get("/results", auth, w(async (q, s) => {
   const hours = recs.reduce((a, x) => a + x.duration_s, 0) / 3600;
   const perModel = {};
   for (const d of ["15", "30", "60"]) {
+    const have = recs.filter((rc) => rc.predictions[d]); // recordings that include this model
+    if (!have.length) continue;
+    const hrs = have.reduce((a, x) => a + x.duration_s, 0) / 3600;
     let seizures = 0, detected = 0, early = 0, falseAlarms = 0; const leads = [];
-    for (const rc of recs) {
+    for (const rc of have) {
       const on = rc.seizures[0]?.start;
       if (on != null) seizures++;
       let hit = false;
@@ -141,7 +144,7 @@ r.get("/results", auth, w(async (q, s) => {
     perModel[d] = {
       seizures, detected, earlyAlarms: early, falseAlarms,
       sensitivity: seizures ? detected / seizures : null,
-      falseAlarmsPerHour: hours ? falseAlarms / hours : null,
+      falseAlarmsPerHour: hrs ? falseAlarms / hrs : null,
       meanLeadMin: leads.length ? leads.reduce((a, b) => a + b, 0) / leads.length / 60 : null,
     };
   }
