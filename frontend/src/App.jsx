@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./api.jsx";
-import { Alarms, Dashboard, PatientDetail, Patients, Results, Stats, Users, Viewer } from "./pages.jsx";
+import { Alarms, About, Dashboard, PatientDetail, Patients, Results, Stats, Users, Viewer } from "./pages.jsx";
 import Profile from "./Profile.jsx";
 import { Avatar, Button, cx, ErrorBox, Field, Input, Logo, wrap } from "./ui.jsx";
 
@@ -88,7 +88,7 @@ function Footer() {
   const year = new Date().getFullYear();
   return (
     <footer className="mt-auto bg-navy text-slate-300">
-      {/* <div className={cx(wrap, "py-10")}>
+      <div className={cx(wrap, "py-10")}>
         <div className="flex items-center gap-2.5 text-lg font-bold text-white"><Logo size={28} /> AdaptiCare</div>
         <div className="mt-4 max-w-4xl space-y-3 text-sm leading-relaxed text-slate-400">
           <p>
@@ -101,12 +101,12 @@ function Footer() {
             AdaptiCare was developed as a final-year B.Tech major project. It is a research prototype and is not intended for clinical or diagnostic use.
           </p>
         </div>
-      </div> */}
-      <div className="border-t border-navy-3/60  py-2 text-center text-[16px] text-slate-400">
-        <span>© {year} AdaptiCare. All rights reserved.</span>
-        {/* <div className={cx(wrap, "flex flex-col gap-1 py-4 text-[13px] text-slate-400 sm:flex-row sm:items-center sm:justify-between")}>
+      </div>
+      <div className="border-t border-navy-3/60">
+        <div className={cx(wrap, "flex flex-col gap-1 py-4 text-[13px] text-slate-400 sm:flex-row sm:items-center sm:justify-between")}>
+          <span>© {year} AdaptiCare. All rights reserved.</span>
           <span>Research prototype. Not a clinical or diagnostic tool.</span>
-        </div> */}
+        </div>
       </div>
     </footer>
   );
@@ -130,7 +130,7 @@ export default function App() {
           <Route path="/stats" element={<Stats />} />
           <Route path="/users" element={user.role === "admin" ? <Users /> : <Navigate to="/" />} />
           <Route path="/profile" element={<Profile />} />
-          {/* <Route path="/about" element={<About />} /> */}
+          <Route path="/about" element={<About />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

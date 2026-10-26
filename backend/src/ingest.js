@@ -15,7 +15,15 @@ exports.validatePayload = (p) => {
     len = ws.length;
     if (!pr.every((x) => typeof x === "number" && x >= 0 && x <= 1)) return `models.${d}: probability values must be numbers between 0 and 1`;
     if (!Array.isArray(al) || !al.every(Number.isFinite)) return `models.${d}: alarms_sec must be an array of numbers`;
+    if (m.alarm_leads_s !== undefined && (!Array.isArray(m.alarm_leads_s) || m.alarm_leads_s.length !== al.length || !m.alarm_leads_s.every((v) => v === null || Number.isFinite(v)))) return `models.${d}: alarm_leads_s must have one number (or null) per alarm`;
     if (typeof threshold !== "number") return `models.${d}: threshold is required`;
+  }
+  if (p.recording.abs_offset_s !== undefined && !Number.isFinite(p.recording.abs_offset_s)) return "recording.abs_offset_s must be a number";
+  if (p.labels !== undefined) {
+    for (const d of Object.keys(p.labels)) {
+      const a = p.labels[d];
+      if (!Array.isArray(a) || a.length !== len || !a.every((v) => v === -1 || v === 0 || v === 1)) return `labels.${d} must have one value (-1, 0 or 1) per window`;
+    }
   }
   return null;
 };
@@ -33,6 +41,8 @@ exports.ingestRecording = async (patientId, p, { overwrite = false } = {}) => {
     patient: patientId,
     edf: p.recording.edf,
     fold: p.recording.fold,
+    abs_offset_s: p.recording.abs_offset_s,
+    labels: p.labels,
     source: p._mock ? "demo" : "imported",
     duration_s: p.recording.duration_s,
     seizures: p.seizures_sec || [],
@@ -41,9 +51,10 @@ exports.ingestRecording = async (patientId, p, { overwrite = false } = {}) => {
     predictions: p.models,
   });
   const alarms = [];
-  for (const d of Object.keys(p.models))
-    for (const t of p.models[d].alarms_sec)
-      alarms.push({ recording: rec._id, patient: patientId, duration: Number(d), time_s: t });
+  for (const d of Object.keys(p.models)) {
+    const m = p.models[d];
+    m.alarms_sec.forEach((t, i) => alarms.push({ recording: rec._id, patient: patientId, duration: Number(d), time_s: t, ...(m.alarm_leads_s ? { lead_s: m.alarm_leads_s[i] } : {}) }));
+  }
   if (alarms.length) await Alarm.insertMany(alarms);
   return rec;
 };

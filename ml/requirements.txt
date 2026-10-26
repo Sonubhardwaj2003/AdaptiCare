@@ -1,3 +1,5 @@
 numpy
-torch
+scipy
+pandas
 mne>=1.6
+torch

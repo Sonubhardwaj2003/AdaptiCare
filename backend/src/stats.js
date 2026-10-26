@@ -22,6 +22,7 @@ function averagePrecision(scores, labels) {
 
 // 1 = positive, 0 = negative, -1 = unscored
 function windowLabels(rec, L) {
+  if (rec.labels && rec.labels[L]) return rec.labels[L]; // exact labels supplied by the ML pipeline
   const w = rec.settings?.window_s || 5;
   return Object.values(rec.predictions)[0].window_start_sec.map((t) => {
     const e = t + w; let pos = false, unclean = false;
@@ -52,6 +53,43 @@ function friedman(rows) {
   return { n, Q, p: Math.exp(-Q / 2), meanRanks: R.map((v) => v / n) };
 }
 
+// Event-level numbers for one model over a set of recordings.
+// Hit = alarm 5 to 35 min before onset (counted once per seizure). Early = 35 to 65 min before (unscored). Anything else = false alarm.
+// When the ML pipeline supplies alarm_leads_s, the lead is measured to the next onset on the subject's clock, so an alarm in one
+// file can warn of a seizure in the next file. Without it (demo data) only seizures in the same recording are considered.
+// False alarms per hour use interictal hours only.
+function eventStats(recs, d) {
+  let seizures = 0, early = 0, falseAlarms = 0, hours = 0;
+  const hits = new Map();
+  for (const rc of recs) {
+    const m = rc.predictions[d];
+    if (!m) continue;
+    const off = rc.abs_offset_s, pat = String(rc.patient);
+    const key = (onset) => (off != null ? `${pat}:a${Math.round(off + onset)}` : `${rc._id}:${onset}`);
+    seizures += rc.seizures.length;
+    hours += (windowLabels(rc, 30).filter((l) => l === 0).length * (rc.settings?.window_s || 5)) / 3600;
+    const onsets = rc.seizures.map((z) => z.start).sort((a, b) => a - b);
+    m.alarms_sec.forEach((t, i) => {
+      let lead, k = null;
+      if (m.alarm_leads_s) { lead = m.alarm_leads_s[i]; if (lead != null) k = `${pat}:a${Math.round((off ?? 0) + t + lead)}`; }
+      else { const on = onsets.find((o) => o > t); lead = on == null ? null : on - t; if (on != null) k = key(on); }
+      if (lead != null && lead >= 300 && lead <= 2100) { if (!hits.has(k)) hits.set(k, lead); }
+      else if (lead != null && lead > 2100 && lead <= 3900) early++;
+      else falseAlarms++;
+    });
+  }
+  const leads = [...hits.values()];
+  return {
+    seizures, detected: hits.size, earlyAlarms: early, falseAlarms,
+    interictalHours: hours,
+    sensitivity: seizures ? hits.size / seizures : null,
+    falseAlarmsPerHour: hours ? falseAlarms / hours : null,
+    meanLeadMin: leads.length ? leads.reduce((a, b) => a + b, 0) / leads.length / 60 : null,
+  };
+}
+
+exports.windowLabels = windowLabels;
+exports.eventStats = eventStats;
 exports.averagePrecision = averagePrecision;
 exports.friedman = friedman;
 

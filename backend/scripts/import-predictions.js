@@ -21,10 +21,13 @@ if (!folder || !fs.existsSync(folder)) {
 (async () => {
   await mongoose.connect(process.env.MONGODB_URI);
   if (resetDemo) {
-    const demo = await Recording.find({ source: "demo" }).distinct("_id");
-    await Alarm.deleteMany({ recording: { $in: demo } });
-    await Recording.deleteMany({ _id: { $in: demo } });
-    console.log(`Removed ${demo.length} demo recordings.`);
+    const demo = await Recording.find({ source: "demo" }).select("_id patient").lean();
+    const ids = demo.map((r) => r._id), pats = [...new Set(demo.map((r) => String(r.patient)))];
+    await Alarm.deleteMany({ recording: { $in: ids } });
+    await Recording.deleteMany({ _id: { $in: ids } });
+    let gone = 0;
+    for (const pid of pats) if (!(await Recording.exists({ patient: pid }))) { await Patient.deleteOne({ _id: pid }); gone++; }
+    console.log(`Removed ${ids.length} demo recordings and ${gone} empty demo patients.`);
   }
   const files = fs.readdirSync(folder).filter((f) => f.endsWith(".json")).sort();
   let ok = 0, skipped = 0, failed = 0;

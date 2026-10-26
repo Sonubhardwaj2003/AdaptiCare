@@ -38,14 +38,14 @@ export const Card = ({ className, ...p }) => <div className={cx("rounded-lg bord
 
 export const Table = ({ children }) => (
   <div className="overflow-x-auto rounded-lg border border-line bg-white">
-    <table className="w-full border-collapse text-[15px] [&_td]:border-b [&_td]:border-line [&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_th]:border-b [&_th]:border-line [&_th]:bg-slate-100 [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:font-semibold [&_tr:last-child_td]:border-b-0">
+    <table className="w-full border-collapse text-[15px] max-sm:[&_td]:whitespace-nowrap max-sm:[&_th]:whitespace-nowrap [&_td]:border-b [&_td]:border-line [&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_th]:border-b [&_th]:border-line [&_th]:bg-slate-100 [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:font-semibold [&_tr:last-child_td]:border-b-0">
       {children}
     </table>
   </div>
 );
 
 const tones = { default: "bg-slate-200/70 text-ink", good: "bg-[#dff1e8] text-good", warn: "bg-[#fbecd2] text-warn", bad: "bg-[#fbe1dc] text-coral" };
-export const Pill = ({ tone = "default", children }) => <span className={cx("inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[13px]", tones[tone] || tones.default)}>{children}</span>;
+export const Pill = ({ tone = "default", className, children }) => <span className={cx("inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[13px]", tones[tone] || tones.default, className)}>{children}</span>;
 
 export const Head = ({ title, sub }) => (
   <header className="mb-5">

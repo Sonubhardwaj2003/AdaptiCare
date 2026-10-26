@@ -1,8 +1,13 @@
 node_modules/
 dist/
 .env
+.venv/
+__pycache__/
 *.edf
 *.npy
 *.pt
 *.ckpt
-instructions.md
+ml/data/*
+!ml/data/README.txt
+ml_output/
+INSTRUCTIONS.md

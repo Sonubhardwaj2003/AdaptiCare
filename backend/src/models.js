@@ -24,6 +24,8 @@ const Recording = model("Recording", new Schema({
   fold: Number,
   source: { type: String, enum: ["demo", "imported"], default: "imported" },
   duration_s: Number,
+  abs_offset_s: Number, // seconds on the subject's continuous clock at the start of this file (real data only)
+  labels: Object,       // optional per-window labels {"15": [...], "30": [...], "60": [...]} with -1 unscored, 0 interictal, 1 positive
   seizures: [{ start: Number, end: Number }],
   zones: Object,
   settings: Object,
@@ -35,6 +37,7 @@ const Alarm = model("Alarm", new Schema({
   patient: { ...ref("Patient"), index: true },
   duration: Number, // which model raised it: 15, 30 or 60
   time_s: Number,
+  lead_s: Number, // seconds from this alarm to the next seizure onset (may be in the next file); null if none
   status: { type: String, enum: ["new", "acknowledged", "dismissed"], default: "new" },
   note: String,
   handledBy: ref("User"),

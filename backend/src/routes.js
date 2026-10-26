@@ -3,7 +3,8 @@ const bcrypt = require("bcryptjs");
 const { User, Patient, Recording, Alarm } = require("./models");
 const { sign, auth, admin } = require("./auth");
 const { ingestRecording, validatePayload } = require("./ingest");
-const { subjectStats } = require("./stats");
+const { subjectStats, eventStats } = require("./stats");
+const frozen = require("../data/frozen_fold2.json");
 
 const w = (f) => (q, s, n) => f(q, s, n).catch(n);
 const pub = (u) => ({ id: u._id, name: u.name, email: u.email, role: u.role, avatar: u.avatar || "" });
@@ -127,29 +128,13 @@ r.get("/results", auth, w(async (q, s) => {
   const perModel = {};
   for (const d of ["15", "30", "60"]) {
     const have = recs.filter((rc) => rc.predictions[d]); // recordings that include this model
-    if (!have.length) continue;
-    const hrs = have.reduce((a, x) => a + x.duration_s, 0) / 3600;
-    let seizures = 0, detected = 0, early = 0, falseAlarms = 0; const leads = [];
-    for (const rc of have) {
-      const on = rc.seizures[0]?.start;
-      if (on != null) seizures++;
-      let hit = false;
-      for (const t of rc.predictions[d].alarms_sec) {
-        const lead = on == null ? null : on - t;
-        if (lead != null && lead >= 300 && lead <= 2100) { if (!hit) { hit = true; detected++; leads.push(lead); } }
-        else if (lead != null && lead > 2100 && lead <= 3900) early++;
-        else falseAlarms++;
-      }
-    }
-    perModel[d] = {
-      seizures, detected, earlyAlarms: early, falseAlarms,
-      sensitivity: seizures ? detected / seizures : null,
-      falseAlarmsPerHour: hrs ? falseAlarms / hrs : null,
-      meanLeadMin: leads.length ? leads.reduce((a, b) => a + b, 0) / leads.length / 60 : null,
-    };
+    if (have.length) perModel[d] = eventStats(have, d);
   }
   s.json({ recordings: recs.length, hours, demo: recs.some((x) => x.source === "demo"), perModel });
 }));
+
+// Frozen study results supplied by the ML team (fold 2). Static data, see backend/data/frozen_fold2.json.
+r.get("/frozen", auth, (q, s) => s.json(frozen));
 
 r.get("/stats", auth, w(async (q, s) => {
   s.json(subjectStats(await Recording.find(await onField(q.user)).populate("patient", "code").lean()));

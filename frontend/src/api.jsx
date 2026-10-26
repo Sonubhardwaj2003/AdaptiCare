@@ -49,12 +49,14 @@ export function AuthProvider({ children }) {
 export const minutes = (s) => `${(s / 60).toFixed(1)} min`;
 
 // Explains where an alarm fell relative to the seizure onset.
-export function describeAlarm(t, onset) {
-  if (onset == null) return { text: "No seizure in this recording (false alarm)", tone: "bad" };
-  const lead = onset - t;
-  if (lead < 0) return { text: "After seizure onset", tone: "bad" };
-  if (lead < 300) return { text: `${minutes(lead)} before onset (too late to act)`, tone: "warn" };
-  if (lead <= 2100) return { text: `${minutes(lead)} before onset (correct warning)`, tone: "good" };
-  if (lead <= 3900) return { text: `${minutes(lead)} before onset (earlier than scored window)`, tone: "warn" };
-  return { text: `${minutes(lead)} before onset (too early)`, tone: "bad" };
+// `lead` (optional) is the time to the next seizure onset measured by the ML pipeline, which may be in the next file.
+export function describeAlarm(t, onset, lead) {
+  const given = lead !== undefined;
+  const l = given ? lead : onset == null ? null : onset - t;
+  if (l == null) return { text: given ? "No seizure followed (false alarm)" : "No seizure in this recording (false alarm)", tone: "bad" };
+  if (l < 0) return { text: "After seizure onset", tone: "bad" };
+  if (l < 300) return { text: `${minutes(l)} before onset (too late to act)`, tone: "warn" };
+  if (l <= 2100) return { text: `${minutes(l)} before onset (correct warning)`, tone: "good" };
+  if (l <= 3900) return { text: `${minutes(l)} before onset (earlier than scored window)`, tone: "warn" };
+  return { text: `${minutes(l)} before onset (too early)`, tone: "bad" };
 }

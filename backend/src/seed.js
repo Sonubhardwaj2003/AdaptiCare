@@ -8,6 +8,12 @@ const { mockPayload } = require("./mockgen");
 
 (async () => {
   await mongoose.connect(process.env.MONGODB_URI);
+  const real = await Recording.countDocuments({ source: "imported" });
+  if ((real > 0 || process.env.NODE_ENV === "production") && !process.argv.includes("--force")) {
+    console.error("Refusing to seed: this database holds real imported recordings (or NODE_ENV is production). Seeding deletes everything and creates demo accounts with known passwords. Add --force only if you really want that.");
+    await mongoose.disconnect();
+    process.exit(1);
+  }
   await Promise.all([User.deleteMany(), Patient.deleteMany(), Recording.deleteMany(), Alarm.deleteMany()]);
   const mk = async (name, email, password, role) => User.create({ name, email, role, passwordHash: await bcrypt.hash(password, 10) });
   await mk("Admin", "admin@adapticare.local", "Admin@123", "admin");

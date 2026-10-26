@@ -1,40 +1,43 @@
-"""Settings for turning CHB-MIT EDF files into AdaptiCare prediction files.
+"""Settings for the fold 2 prediction pipeline. The preprocessing itself lives in preprocess.py
+(your friend's exact training code) and is not repeated here."""
+from pathlib import Path
 
-Everything marked CONFIRM must match what your friend used when TRAINING the models.
-If the preprocessing here differs from training, the model output is not meaningful.
-"""
+import pandas as pd # pyright: ignore[reportMissingModuleSource]
 
-# Set to True only after your friend has confirmed every CONFIRM item below.
-PREPROCESSING_CONFIRMED = False
+HERE = Path(__file__).resolve().parent
 
-# ---- Fold (patient-independent evaluation) --------------------------------------------
 FOLD = 2
-# CONFIRM: the subjects held out as the TEST set of this fold, for example ["chb03", "chb09"].
-# Never list a subject the model was trained on, or the results are leaked and look too good.
-TEST_SUBJECTS = []
+SEED = 2026
+# Subjects held out as the TEST set of fold 2 (SUBJ_xx = chbXX). Anything else was used in training.
+TEST_SUBJECTS = ["SUBJ_02", "SUBJ_06", "SUBJ_10"]
 
-# ---- Windowing (from model.py: 640 samples per 5 s window = 128 Hz) --------------------
+DATA_DIR = HERE / "data"                                            # CHB-MIT folders go here
+WINDOW_TABLE = HERE / "reference" / "window_table_fold2_test.csv"   # which windows were scored
+ALARM_TIMES = HERE / "reference" / "fold2_alarm_times.csv"          # frozen alarms, for verification
+THRESHOLDS = HERE / "reference" / "thresholds.csv"
+
 WIN_S = 5
 FS = 128
 
-# ---- CONFIRM: the 18 channels and their order ------------------------------------------
-# This is the common 18-channel bipolar montage used with CHB-MIT. It is a GUESS until confirmed.
-CHANNELS = [
-    "FP1-F7", "F7-T7", "T7-P7", "P7-O1",
-    "FP1-F3", "F3-C3", "C3-P3", "P3-O1",
-    "FP2-F4", "F4-C4", "C4-P4", "P4-O2",
-    "FP2-F8", "F8-T8", "T8-P8", "P8-O2",
-    "FZ-CZ", "CZ-PZ",
-]
+# Label minutes -> checkpoint file. Thresholds are read from reference/thresholds.csv (full precision).
+CHECKPOINTS = {"15": "models/fold2_L15.pt", "30": "models/fold2_L30.pt", "60": "models/fold2_L60.pt"}
 
-# ---- CONFIRM: filtering. None = no band-pass. Example: (0.5, 40) for 0.5 to 40 Hz. ------
-BANDPASS = None
-
-# ---- Models available for this fold ----------------------------------------------------
-# label minutes -> (checkpoint file in this folder, alarm threshold from results/thresholds.csv)
-# Add the 15 and 60 minute models here when your friend sends them.
-MODELS = {
-    "30": ("fold2_L30.pt", 0.6846),
-    # "15": ("fold2_L15.pt", 0.0000),   # fill in threshold
-    # "60": ("fold2_L60.pt", 0.0000),   # fill in threshold
+# Frozen results from the ML teammate (fold 2, seed 2026), used only by verify_pipeline.py.
+FROZEN_PR_AUC = {
+    "15": {"SUBJ_02": 0.0288, "SUBJ_06": 0.0635, "SUBJ_10": 0.0489},
+    "30": {"SUBJ_02": 0.0574, "SUBJ_06": 0.0709, "SUBJ_10": 0.0558},
+    "60": {"SUBJ_02": 0.0634, "SUBJ_06": 0.0618, "SUBJ_10": 0.0416},
 }
+# (hits, seizures, false alarms) per model and subject
+FROZEN_EVENTS = {
+    "15": {"SUBJ_02": (1, 1, 7), "SUBJ_06": (6, 6, 86), "SUBJ_10": (2, 2, 30)},
+    "30": {"SUBJ_02": (1, 1, 21), "SUBJ_06": (1, 6, 22), "SUBJ_10": (0, 2, 0)},
+    "60": {"SUBJ_02": (1, 1, 11), "SUBJ_06": (4, 6, 74), "SUBJ_10": (2, 2, 20)},
+}
+
+
+def thresholds():
+    """{"15": 0.4112..., "30": 0.6846..., "60": 0.1514...} for FOLD, from reference/thresholds.csv."""
+    t = pd.read_csv(THRESHOLDS)
+    t = t[t["fold"] == FOLD]
+    return {str(int(r.L)): float(r.thr) for r in t.itertuples()}

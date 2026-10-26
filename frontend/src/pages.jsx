@@ -30,7 +30,7 @@ export function Dashboard() {
               <Table>
                 <thead><tr><th>Patient</th><th>Recording</th><th>Model</th><th>Result</th></tr></thead>
                 <tbody>{a.data.slice(0, 6).map((x) => {
-                  const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start);
+                  const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s);
                   return (
                     <tr key={x._id}><td><Link className={link} to={`/patients/${x.patient._id}`}>{x.patient.code}</Link></td>
                       <td><Link className={link} to={`/recordings/${x.recording._id}`}>{x.recording.edf}</Link></td><td>{x.duration} min</td>
@@ -165,11 +165,12 @@ export function Viewer() {
             <Sw k="line">Risk</Sw><Sw k="dash">Threshold</Sw><Sw k="bar">Alarm</Sw><Sw k="sz">Seizure</Sw>
             <Sw k="sph">5 min warning delay</Sw><Sw k="sop">Scored window</Sw><Sw k="uns">Unscored zone</Sw>
           </ul>
+          <Note>A single recording only illustrates the display. It says little about overall performance. See Statistics for the pooled results.</Note>
           <H2>Alarms in this recording</H2>
           <Table>
             <thead><tr><th>Model</th><th>Time</th><th>Result</th></tr></thead>
-            <tbody>{models.flatMap((m) => rec.predictions[m].alarms_sec.map((t) => {
-              const d = describeAlarm(t, onset);
+            <tbody>{models.flatMap((m) => rec.predictions[m].alarms_sec.map((t, i) => {
+              const d = describeAlarm(t, onset, rec.predictions[m].alarm_leads_s?.[i]);
               return <tr key={m + t}><td>{m} min</td><td>{minutes(t)} into file</td><td><Pill tone={d.tone}>{d.text}</Pill></td></tr>;
             }))}</tbody>
           </Table>
@@ -193,19 +194,34 @@ export function Alarms() {
       {msg && <ErrorBox>{msg}</ErrorBox>}
       <Status loading={loading} error={error}>
         {data && (data.length === 0 ? <Muted>No alarms here.</Muted> : (
-          <Table>
-            <thead><tr><th>Patient</th><th>Recording</th><th>Model</th><th>Result</th><th>Status</th><th></th></tr></thead>
-            <tbody>{data.map((x) => {
-              const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start);
+          <>
+            <div className="hidden sm:block">
+              <Table>
+                <thead><tr><th>Patient</th><th>Recording</th><th>Model</th><th>Result</th><th>Status</th><th></th></tr></thead>
+                <tbody>{data.map((x) => {
+                  const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s);
+                  return (
+                    <tr key={x._id}>
+                      <td>{x.patient.code}</td><td><Link className={link} to={`/recordings/${x.recording._id}`}>{x.recording.edf}</Link></td><td>{x.duration} min</td>
+                      <td><Pill tone={d.tone}>{d.text}</Pill></td><td>{x.status}</td>
+                      <td>{x.status === "new" && <Actions><Button small onClick={() => act(x._id, "acknowledged")}>Acknowledge</Button><Button small onClick={() => act(x._id, "dismissed")}>Dismiss</Button></Actions>}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </Table>
+            </div>
+            <div className="grid gap-3 sm:hidden">{data.map((x) => {
+              const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s);
               return (
-                <tr key={x._id}>
-                  <td>{x.patient.code}</td><td><Link className={link} to={`/recordings/${x.recording._id}`}>{x.recording.edf}</Link></td><td>{x.duration} min</td>
-                  <td><Pill tone={d.tone}>{d.text}</Pill></td><td>{x.status}</td>
-                  <td>{x.status === "new" && <Actions><Button small onClick={() => act(x._id, "acknowledged")}>Acknowledge</Button><Button small onClick={() => act(x._id, "dismissed")}>Dismiss</Button></Actions>}</td>
-                </tr>
+                <Card key={x._id} className="grid gap-2 !p-4">
+                  <div className="flex items-center justify-between gap-2"><strong>{x.patient.code}</strong><span className="text-sm text-muted">{x.duration} min model, {x.status}</span></div>
+                  <Link className={link} to={`/recordings/${x.recording._id}`}>{x.recording.edf}</Link>
+                  <div><Pill tone={d.tone} className="!whitespace-normal">{d.text}</Pill></div>
+                  {x.status === "new" && <Actions><Button small onClick={() => act(x._id, "acknowledged")}>Acknowledge</Button><Button small onClick={() => act(x._id, "dismissed")}>Dismiss</Button></Actions>}
+                </Card>
               );
-            })}</tbody>
-          </Table>
+            })}</div>
+          </>
         ))}
       </Status>
     </>
@@ -224,12 +240,12 @@ export function Results() {
             <Muted>{data.recordings} recordings, {data.hours.toFixed(1)} hours.</Muted>
             <div className="mt-2.5" />
             <Table>
-              <thead><tr><th>Label duration</th><th>Seizures</th><th>Detected</th><th>Sensitivity</th><th>Mean lead time</th><th>False alarms / hour</th><th>Early alarms</th></tr></thead>
+              <thead><tr><th>Label duration</th><th>Seizures</th><th>Detected</th><th>Sensitivity</th><th>Mean lead time</th><th>Interictal hours</th><th>False alarms / hour</th><th>Early alarms</th></tr></thead>
               <tbody>{Object.entries(data.perModel).map(([d, m]) => (
-                <tr key={d}><td>{d} min</td><td>{m.seizures}</td><td>{m.detected}</td><td>{pct(m.sensitivity)}</td><td>{m.meanLeadMin == null ? "n/a" : `${num(m.meanLeadMin)} min`}</td><td>{num(m.falseAlarmsPerHour, 2)}</td><td>{m.earlyAlarms}</td></tr>
+                <tr key={d}><td>{d} min</td><td>{m.seizures}</td><td>{m.detected}</td><td>{pct(m.sensitivity)}</td><td>{m.meanLeadMin == null ? "n/a" : `${num(m.meanLeadMin)} min`}</td><td>{num(m.interictalHours, 1)}</td><td>{num(m.falseAlarmsPerHour, 2)}</td><td>{m.earlyAlarms}</td></tr>
               ))}</tbody>
             </Table>
-            <Note>A detected seizure has an alarm 5 to 35 min before onset. Early alarms (35 to 65 min before) are not counted as false alarms. Any other alarm is a false alarm.</Note>
+            <Note>A detected seizure has an alarm 5 to 35 min before onset. Alarms 35 to 65 min before onset are early and unscored. Any other alarm is a false alarm, and false alarms per hour use interictal hours only. These numbers are computed from the recordings imported into this app. The reference results from the ML team are on the Statistics page.</Note>
           </>
         )}
       </Status>
@@ -237,35 +253,60 @@ export function Results() {
   );
 }
 
-function UserRow({ u, me, reload, setMsg }) {
+function useUserActions(u, me, reload, setMsg) {
   const [pw, setPw] = useState(null);
   const self = u._id === me.id, off = u.active === false;
   const run = async (fn, ok) => { try { await fn(); setMsg(ok || ""); reload(); } catch (e) { setMsg(e.message); } };
   const patch = (body) => run(() => api(`/users/${u._id}`, { method: "PATCH", body }));
+  const setPassword = () => run(() => api(`/users/${u._id}/password`, { method: "POST", body: { password: pw } }).then(() => setPw(null)), `Password updated for ${u.name}.`);
+  return { pw, setPw, self, off, patch, setPassword };
+}
+
+const PasswordForm = ({ u, a }) => (
+  <div className="flex flex-wrap items-center gap-2">
+    <Input className="min-w-[220px] flex-1" type="password" placeholder="New password (8+ characters)" value={a.pw} onChange={(e) => a.setPw(e.target.value)} autoFocus aria-label={`New password for ${u.name}`} />
+    <Button variant="primary" disabled={a.pw.length < 8} onClick={a.setPassword}>Set password</Button>
+    <Button onClick={() => a.setPw(null)}>Cancel</Button>
+  </div>
+);
+
+function UserRow({ u, me, reload, setMsg }) {
+  const a = useUserActions(u, me, reload, setMsg);
   return (
     <>
       <tr>
-        <td><div className="flex items-center gap-2.5"><Avatar user={u} size={30} /><span>{u.name}{self && <span className="text-muted"> (you)</span>}</span></div></td>
+        <td><div className="flex items-center gap-2.5"><Avatar user={u} size={30} /><span>{u.name}{a.self && <span className="text-muted"> (you)</span>}</span></div></td>
         <td>{u.email}</td>
-        <td><Select className="!w-auto" aria-label={`Role for ${u.name}`} value={u.role} disabled={self} onChange={(e) => patch({ role: e.target.value })}><option value="clinician">Clinician</option><option value="admin">Admin</option></Select></td>
-        <td><Pill tone={off ? "bad" : "good"}>{off ? "Disabled" : "Active"}</Pill></td>
+        <td><Select className="!w-auto" aria-label={`Role for ${u.name}`} value={u.role} disabled={a.self} onChange={(e) => a.patch({ role: e.target.value })}><option value="clinician">Clinician</option><option value="admin">Admin</option></Select></td>
+        <td><Pill tone={a.off ? "bad" : "good"}>{a.off ? "Disabled" : "Active"}</Pill></td>
         <td>
           <Actions>
-            <Button small onClick={() => setPw(pw === null ? "" : null)}>Reset password</Button>
-            {!self && <Button small onClick={() => patch({ active: off })}>{off ? "Enable" : "Disable"}</Button>}
+            <Button small onClick={() => a.setPw(a.pw === null ? "" : null)}>Reset password</Button>
+            {!a.self && <Button small onClick={() => a.patch({ active: a.off })}>{a.off ? "Enable" : "Disable"}</Button>}
           </Actions>
         </td>
       </tr>
-      {pw !== null && (
-        <tr><td colSpan={5}>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input className="min-w-[220px] flex-1" type="password" placeholder="New password (8+ characters)" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus aria-label={`New password for ${u.name}`} />
-            <Button variant="primary" disabled={pw.length < 8} onClick={() => run(() => api(`/users/${u._id}/password`, { method: "POST", body: { password: pw } }).then(() => setPw(null)), `Password updated for ${u.name}.`)}>Set password</Button>
-            <Button onClick={() => setPw(null)}>Cancel</Button>
-          </div>
-        </td></tr>
-      )}
+      {a.pw !== null && <tr><td colSpan={5}><PasswordForm u={u} a={a} /></td></tr>}
     </>
+  );
+}
+
+function UserCard({ u, me, reload, setMsg }) {
+  const a = useUserActions(u, me, reload, setMsg);
+  return (
+    <Card className="grid gap-3 !p-4">
+      <div className="flex items-center gap-3">
+        <Avatar user={u} size={40} />
+        <div className="min-w-0 flex-1"><p className="font-semibold">{u.name}{a.self && <span className="font-normal text-muted"> (you)</span>}</p><p className="truncate text-sm text-muted">{u.email}</p></div>
+        <Pill tone={a.off ? "bad" : "good"}>{a.off ? "Disabled" : "Active"}</Pill>
+      </div>
+      <Field label="Role"><Select aria-label={`Role for ${u.name}`} value={u.role} disabled={a.self} onChange={(e) => a.patch({ role: e.target.value })}><option value="clinician">Clinician</option><option value="admin">Admin</option></Select></Field>
+      <Actions>
+        <Button small onClick={() => a.setPw(a.pw === null ? "" : null)}>Reset password</Button>
+        {!a.self && <Button small onClick={() => a.patch({ active: a.off })}>{a.off ? "Enable" : "Disable"}</Button>}
+      </Actions>
+      {a.pw !== null && <PasswordForm u={u} a={a} />}
+    </Card>
   );
 }
 
@@ -292,12 +333,69 @@ export function Users() {
       </Card>
       {msg && <p role="status" className="mb-3 text-sm text-muted">{msg}</p>}
       <Status loading={loading} error={error}>
-        {data && <Table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
-          <tbody>{data.map((u) => <UserRow key={u._id} u={u} me={me} reload={reload} setMsg={setMsg} />)}</tbody>
-        </Table>}
+        {data && (
+          <>
+            <div className="hidden sm:block">
+              <Table>
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+                <tbody>{data.map((u) => <UserRow key={u._id} u={u} me={me} reload={reload} setMsg={setMsg} />)}</tbody>
+              </Table>
+            </div>
+            <div className="grid gap-3 sm:hidden">{data.map((u) => <UserCard key={u._id} u={u} me={me} reload={reload} setMsg={setMsg} />)}</div>
+          </>
+        )}
       </Status>
     </>
+  );
+}
+
+function Frozen() {
+  const { data, loading, error } = useApi("/frozen");
+  const D = ["15", "30", "60"], f4 = (v) => (v == null ? "n/a" : v.toFixed(4));
+  return (
+    <Status loading={loading} error={error}>
+      {data && (() => {
+        const subs = data.testSubjects;
+        const hours = subs.reduce((a, c) => a + data.interictalHours[c], 0);
+        const pooled = (m) => {
+          const e = subs.map((c) => data.events[m][c]);
+          return { hits: e.reduce((a, x) => a + x.hits, 0), seizures: e.reduce((a, x) => a + x.seizures, 0), fa: e.reduce((a, x) => a + x.falseAlarms, 0) };
+        };
+        return (
+          <>
+            <H2>{data.title} (seed {data.seed})</H2>
+            <Note>Reference results from the ML team on the test subjects of this fold: {subs.join(", ")}. Test target: {data.target}. Thresholds were {data.thresholdRule}.</Note>
+
+            <h3 className="mb-2 mt-4 font-semibold">Seizure detection (events)</h3>
+            <Table>
+              <thead><tr><th>Model</th>{subs.map((c) => <th key={c}>{c}</th>)}<th>All test subjects</th></tr></thead>
+              <tbody>{D.map((m) => {
+                const t = pooled(m);
+                return (
+                  <tr key={m}><td>{m} min</td>
+                    {subs.map((c) => { const e = data.events[m][c]; return <td key={c}>{e.hits}/{e.seizures} detected, {e.falseAlarms} false alarms</td>; })}
+                    <td className="font-semibold">{t.hits}/{t.seizures} detected, {(t.fa / hours).toFixed(2)} false alarms per hour</td></tr>
+                );
+              })}</tbody>
+            </Table>
+            <Note>Interictal hours: {subs.map((c) => `${c} ${data.interictalHours[c].toFixed(1)} h`).join(", ")}.</Note>
+
+            <h3 className="mb-2 mt-4 font-semibold">Window PR-AUC</h3>
+            <Table>
+              <thead><tr><th>Subject</th><th>Prevalence</th>{D.map((m) => <th key={m}>{m} min model</th>)}</tr></thead>
+              <tbody>{subs.map((c) => (
+                <tr key={c}><td>{c}</td><td>{f4(data.prevalence[c])}</td>
+                  {D.map((m) => { const v = data.windowPrAuc[m][c]; return <td key={m} className={cx("tabular-nums", v < data.prevalence[c] && "text-coral")}>{f4(v)}{v < data.prevalence[c] && " (below prevalence)"}</td>; })}</tr>
+              ))}</tbody>
+            </Table>
+
+            <ul className="mt-3 max-w-[90ch] list-disc space-y-1.5 pl-5 text-sm text-muted">
+              {data.notes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          </>
+        );
+      })()}
+    </Status>
   );
 }
 
@@ -307,7 +405,9 @@ export function Stats() {
   const shade = (v) => (v == null ? undefined : { background: `rgba(11,122,132,${Math.max(0.05, v) * 0.45})` });
   return (
     <>
-      <Head title="Statistics" sub="Window-level comparison of the three label durations, per subject. Exploratory when there are few subjects." />
+      <Head title="Statistics" sub="Reference results from the ML team, and the same analysis computed from the recordings imported into this app." />
+      <Frozen />
+      <H2>Computed from the recordings in this app</H2>
       <Status loading={loading} error={error}>
         {data && (
           <>

@@ -1,58 +1,45 @@
-# AdaptiCare ML folder
+# ML folder (fold 2)
 
-Turns CHB-MIT EEG files into the JSON files that the AdaptiCare app imports.
+Turns CHB-MIT EDF files into the JSON files that the AdaptiCare app imports.
 
 ```
-EDF files  ->  make_predictions.py  ->  ../ml_output/*.json  ->  npm run import  ->  AdaptiCare
+EDF files -> make_predictions.py -> ../ml_output/*.json -> verify_pipeline.py -> npm run import -> AdaptiCare
 ```
 
-## Files
+## What is in this folder
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
-| `model.py` | Your friend's network, prediction and alarm rule. Do not edit. |
-| `fold2_L30.pt` | Trained model: fold 2, 30 minute label. |
-| `config.py` | Fold, test subjects, channels, filter, model list. Must be confirmed with your friend. |
-| `make_predictions.py` | Reads EDF files, runs the models, writes one JSON per recording. |
-| `requirements.txt` | Python packages. |
+| `preprocess.py` | Training preprocessing from the ML teammate. Do not edit. |
+| `model.py` | Network, prediction and alarm rule from the ML teammate. Do not edit. |
+| `models/fold2_L15.pt`, `fold2_L30.pt`, `fold2_L60.pt` | The three trained models of fold 2 (seed 2026). |
+| `reference/` | `window_table_fold2_test.csv` (the windows that were scored), `thresholds.csv`, `fold2_alarm_times.csv` (frozen alarms). |
+| `config.py` | Fold, test subjects, paths, frozen numbers used for verification. |
+| `make_predictions.py` | Runs the models and writes one JSON per recording. |
+| `verify_pipeline.py` | Compares the output with the frozen results. |
+| `data/` | Put the downloaded CHB-MIT files here (see `data/README.txt`). |
 
-## One-time setup
+## Rules
 
-1. Install Python 3.10 or newer.
-2. In this folder: `pip install -r requirements.txt`
-3. Check the model loads: `python -c "from model import load_model; load_model('fold2_L30.pt'); print('ok')"`
+* Only SUBJ_02, SUBJ_06 and SUBJ_10 (chb02, chb06, chb10) may be used. They are the test subjects of fold 2. The script refuses any other subject.
+* The windows come from the window table, so the output matches the frozen study exactly.
+* Alarms are computed over the whole subject timeline, so the 30 minute refractory period carries across file boundaries.
+* Thresholds come from `reference/thresholds.csv` (full precision).
 
-## Before the first real run
-
-Open `config.py` and confirm with your friend:
-
-1. `TEST_SUBJECTS`: the subjects held out as the test set of fold 2.
-2. `CHANNELS`: the 18 channels and their order used in training.
-3. `BANDPASS`: the filter used in training (or None).
-4. The windows are z-scored per channel (as in `model.py`), 128 Hz, 5 s.
-
-Then set `PREPROCESSING_CONFIRMED = True`. The script refuses to run until you do, and it refuses subjects that are not test subjects of the fold (this prevents training leakage).
-
-## Run
+## Commands (run inside this folder)
 
 ```
-python make_predictions.py --data "D:/chb-mit" --limit 2        quick test on 2 files per subject
-python make_predictions.py --data "D:/chb-mit"                  all files of the test subjects
+pip install -r requirements.txt
+python make_predictions.py --subjects SUBJ_02 --limit 2     quick test, 2 files
+python make_predictions.py                                  everything (68 files)
+python verify_pipeline.py                                   compare with the frozen results
 ```
 
-`--data` is the folder that contains `chb01`, `chb02` and so on. Each subject folder must contain its EDF files and its `chbXX-summary.txt`.
-Include recordings without seizures too: the Statistics page needs them as negative examples.
+`--allow-missing` skips EDF files that are not downloaded. Do not use it for the final run, because alarms need the complete timeline.
 
-## Load into the app
+## If a line says CHECK
 
-From the `backend` folder:
-
-```
-npm run import -- ../ml_output --reset-demo
-```
-
-`--reset-demo` removes the fake demo data. Use `--overwrite` to replace recordings that were imported before.
-
-## Adding the 15 and 60 minute models
-
-Put the checkpoint files in this folder, then add them to `MODELS` in `config.py` with their thresholds. Run again with `--overwrite` on import. The app shows only the models that exist in a recording, and the comparison pages (Results, Statistics) fill in as more models arrive.
+1. Run without `--limit`. A partial run can never match.
+2. Check that all 68 EDF files are present and not corrupted (compare file sizes with PhysioNet).
+3. Check that `models/fold2_L15.pt`, `fold2_L30.pt` and `fold2_L60.pt` are the right files for their names.
+4. Check the MNE version (`pip show mne`). Send the full verify output to your ML teammate; small differences in EDF reading can move a few windows.

@@ -1,0 +1,29 @@
+{
+  "title": "Fold 2 frozen results",
+  "seed": 2026,
+  "source": "ML team, frozen results (fold 2, seed 2026)",
+  "testSubjects": ["SUBJ_02", "SUBJ_06", "SUBJ_10"],
+  "validationSubject": "SUBJ_04",
+  "target": "windows from 35 min to 5 min before onset",
+  "thresholdRule": "chosen on the validation subject for 0.2 false alarms per hour",
+  "thresholds": { "15": 0.411203, "30": 0.684633, "60": 0.151417 },
+  "prevalence": { "SUBJ_02": 0.0175, "SUBJ_06": 0.0630, "SUBJ_10": 0.0293 },
+  "interictalHours": { "SUBJ_02": 28.0, "SUBJ_06": 44.4, "SUBJ_10": 33.1 },
+  "windowPrAuc": {
+    "15": { "SUBJ_02": 0.0288, "SUBJ_06": 0.0635, "SUBJ_10": 0.0489 },
+    "30": { "SUBJ_02": 0.0574, "SUBJ_06": 0.0709, "SUBJ_10": 0.0558 },
+    "60": { "SUBJ_02": 0.0634, "SUBJ_06": 0.0618, "SUBJ_10": 0.0416 }
+  },
+  "events": {
+    "15": { "SUBJ_02": { "hits": 1, "seizures": 1, "falseAlarms": 7 }, "SUBJ_06": { "hits": 6, "seizures": 6, "falseAlarms": 86 }, "SUBJ_10": { "hits": 2, "seizures": 2, "falseAlarms": 30 } },
+    "30": { "SUBJ_02": { "hits": 1, "seizures": 1, "falseAlarms": 21 }, "SUBJ_06": { "hits": 1, "seizures": 6, "falseAlarms": 22 }, "SUBJ_10": { "hits": 0, "seizures": 2, "falseAlarms": 0 } },
+    "60": { "SUBJ_02": { "hits": 1, "seizures": 1, "falseAlarms": 11 }, "SUBJ_06": { "hits": 4, "seizures": 6, "falseAlarms": 74 }, "SUBJ_10": { "hits": 2, "seizures": 2, "falseAlarms": 20 } }
+  },
+  "notes": [
+    "A hit is an alarm 5 to 35 minutes before seizure onset. Alarms 35 to 65 minutes before onset are unscored. Other alarms in interictal time are false alarms. False alarms per hour use interictal hours.",
+    "The alarm threshold of every model was set on the validation subject for 0.2 false alarms per hour. On the test subjects it gave 0.4 to 1.2 false alarms per hour, so the threshold did not transfer. Hits are therefore not comparable between label lengths: 9 of 9 for the 15 minute model must not be read as better.",
+    "Window PR-AUC should be compared with prevalence. A value close to prevalence is no better than chance, and the 60 minute model for SUBJ_06 is below it.",
+    "Only the test subjects of this fold are shown. The other subjects were used for training or validation, so scoring them would give inflated results.",
+    "Single recordings shown in a demo were chosen after seeing the results. They illustrate the display and are not typical or best-case performance."
+  ]
+}
