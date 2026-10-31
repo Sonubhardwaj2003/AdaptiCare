@@ -25,5 +25,8 @@ if (secret.startsWith("change-this") || secret.length < 24) {
 }
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => app.listen(PORT, () => console.log(`AdaptiCare API on port ${PORT}`)))
+    .then(async () => {
+    await require("./uploads").recover(); // uploads that were interrupted by a restart
+    app.listen(PORT, () => console.log(`AdaptiCare API on port ${PORT}`));
+  })
   .catch((e) => { console.error("Could not connect to MongoDB:", e.message); process.exit(1); });

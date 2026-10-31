@@ -3,3 +3,6 @@ scipy
 pandas
 mne>=1.6
 torch
+fastapi
+uvicorn
+python-multipart

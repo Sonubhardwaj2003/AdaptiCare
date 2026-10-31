@@ -30,7 +30,7 @@ exports.validatePayload = (p) => {
 
 // Stores one prediction payload and creates an alarm per alarm time.
 // Returns null if the recording already exists for this patient and overwrite is false.
-exports.ingestRecording = async (patientId, p, { overwrite = false } = {}) => {
+exports.ingestRecording = async (patientId, p, { overwrite = false, source } = {}) => {
   const exists = await Recording.findOne({ patient: patientId, edf: p.recording.edf });
   if (exists) {
     if (!overwrite) return null;
@@ -43,7 +43,8 @@ exports.ingestRecording = async (patientId, p, { overwrite = false } = {}) => {
     fold: p.recording.fold,
     abs_offset_s: p.recording.abs_offset_s,
     labels: p.labels,
-    source: p._mock ? "demo" : "imported",
+    annotated: p.annotated,
+    source: source || (p._mock ? "demo" : "imported"),
     duration_s: p.recording.duration_s,
     seizures: p.seizures_sec || [],
     zones: p.zones || null,

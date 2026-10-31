@@ -30,7 +30,7 @@ export function Dashboard() {
               <Table>
                 <thead><tr><th>Patient</th><th>Recording</th><th>Model</th><th>Result</th></tr></thead>
                 <tbody>{a.data.slice(0, 6).map((x) => {
-                  const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s);
+                  const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s, x.recording.annotated);
                   return (
                     <tr key={x._id}><td><Link className={link} to={`/patients/${x.patient._id}`}>{x.patient.code}</Link></td>
                       <td><Link className={link} to={`/recordings/${x.recording._id}`}>{x.recording.edf}</Link></td><td>{x.duration} min</td>
@@ -104,6 +104,7 @@ export function PatientDetail() {
         <>
           <Head title={data.patient.code} sub={`Assigned to: ${data.patient.assignedTo.map((u) => u.name).join(", ") || "nobody yet"}`} />
           {user.role === "admin" && <Assign patient={data.patient} reload={reload} />}
+          <Link to={`/upload?patient=${data.patient._id}`} className="mb-4 inline-flex min-h-[42px] items-center rounded-md border border-brand bg-brand px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-dark">Upload EDF files</Link>
           <Table>
             <thead><tr><th>Recording</th><th>Length</th><th>Seizures</th></tr></thead>
             <tbody>{data.recordings.map((r) => (
@@ -145,6 +146,7 @@ export function Viewer() {
       {rec && (
         <>
           <Head title={rec.edf} sub={`Patient ${rec.patient.code}. Predicted risk per 5 s window from the 15, 30 and 60 min models.`} />
+          {rec.annotated === false && <p className="mb-3 inline-block rounded border border-[#e6cf7a] bg-[#fff3cd] px-2.5 py-1 text-sm">Uploaded recording without seizure annotation. Alarms are shown without an outcome.</p>}
           <div className="flex flex-wrap items-center justify-between gap-x-4">
             <Tabs>{[...avail, ...(avail.length > 1 ? ["compare"] : [])].map((v) => (
               <Button key={v} role="tab" aria-selected={shown === v} variant={shown === v ? "dark" : "default"} onClick={() => setView(v)}>{v === "compare" ? "Compare all" : `${v} min model`}</Button>
@@ -170,7 +172,7 @@ export function Viewer() {
           <Table>
             <thead><tr><th>Model</th><th>Time</th><th>Result</th></tr></thead>
             <tbody>{models.flatMap((m) => rec.predictions[m].alarms_sec.map((t, i) => {
-              const d = describeAlarm(t, onset, rec.predictions[m].alarm_leads_s?.[i]);
+              const d = describeAlarm(t, onset, rec.predictions[m].alarm_leads_s?.[i], rec.annotated);
               return <tr key={m + t}><td>{m} min</td><td>{minutes(t)} into file</td><td><Pill tone={d.tone}>{d.text}</Pill></td></tr>;
             }))}</tbody>
           </Table>
@@ -199,7 +201,7 @@ export function Alarms() {
               <Table>
                 <thead><tr><th>Patient</th><th>Recording</th><th>Model</th><th>Result</th><th>Status</th><th></th></tr></thead>
                 <tbody>{data.map((x) => {
-                  const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s);
+                  const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s, x.recording.annotated);
                   return (
                     <tr key={x._id}>
                       <td>{x.patient.code}</td><td><Link className={link} to={`/recordings/${x.recording._id}`}>{x.recording.edf}</Link></td><td>{x.duration} min</td>
@@ -211,7 +213,7 @@ export function Alarms() {
               </Table>
             </div>
             <div className="grid gap-3 sm:hidden">{data.map((x) => {
-              const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s);
+              const d = describeAlarm(x.time_s, x.recording.seizures[0]?.start, x.lead_s, x.recording.annotated);
               return (
                 <Card key={x._id} className="grid gap-2 !p-4">
                   <div className="flex items-center justify-between gap-2"><strong>{x.patient.code}</strong><span className="text-sm text-muted">{x.duration} min model, {x.status}</span></div>

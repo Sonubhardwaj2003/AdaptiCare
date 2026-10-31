@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-route
 import { useAuth } from "./api.jsx";
 import { Alarms, About, Dashboard, PatientDetail, Patients, Results, Stats, Users, Viewer } from "./pages.jsx";
 import Profile from "./Profile.jsx";
+import Upload from "./Upload.jsx";
 import { Avatar, Button, cx, ErrorBox, Field, Input, Logo, wrap } from "./ui.jsx";
 
 // Decorative EEG-style traces for the sign-in side panel.
@@ -59,7 +60,7 @@ function Navbar({ user }) {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   useEffect(() => setOpen(false), [pathname]);
-  const links = [["/", "Dashboard"], ["/patients", "Patients"], ["/alarms", "Alarms"], ["/results", "Results"], ["/stats", "Statistics"], ...(user.role === "admin" ? [["/users", "Users"]] : [])];
+  const links = [["/", "Dashboard"], ["/patients", "Patients"], ["/upload", "Upload"], ["/alarms", "Alarms"], ["/results", "Results"], ["/stats", "Statistics"], ...(user.role === "admin" ? [["/users", "Users"]] : [])];
   return (
     <header className="sticky top-0 z-20 bg-navy text-white">
       {/* Desktop: 3 columns (logo | links in the middle | profile). Mobile: logo + menu button. */}
@@ -124,6 +125,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/patients" element={<Patients />} />
           <Route path="/patients/:id" element={<PatientDetail />} />
+          <Route path="/upload" element={<Upload />} />
           <Route path="/recordings/:id" element={<Viewer />} />
           <Route path="/alarms" element={<Alarms />} />
           <Route path="/results" element={<Results />} />

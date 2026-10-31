@@ -14,6 +14,26 @@ export async function api(path, { method = "GET", body } = {}) {
   return data;
 }
 
+// Uploads files with a progress callback (fetch cannot report upload progress).
+export function uploadFiles(path, files, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", BASE + path);
+    const token = localStorage.getItem("token");
+    if (token) x.setRequestHeader("Authorization", `Bearer ${token}`);
+    x.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+    x.onload = () => {
+      let body = {};
+      try { body = JSON.parse(x.responseText); } catch { /* not JSON */ }
+      x.status >= 200 && x.status < 300 ? resolve(body) : reject(new Error(body.error || `Upload failed (${x.status})`));
+    };
+    x.onerror = () => reject(new Error("Cannot reach the server. Check that the backend is running."));
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    x.send(form);
+  });
+}
+
 // Loads data from the API. Call reload() after a change.
 export function useApi(path) {
   const [state, setState] = useState({ data: null, error: "", loading: true });
@@ -50,7 +70,8 @@ export const minutes = (s) => `${(s / 60).toFixed(1)} min`;
 
 // Explains where an alarm fell relative to the seizure onset.
 // `lead` (optional) is the time to the next seizure onset measured by the ML pipeline, which may be in the next file.
-export function describeAlarm(t, onset, lead) {
+export function describeAlarm(t, onset, lead, annotated) {
+  if (annotated === false) return { text: "Alarm raised (no seizure annotation to judge it)", tone: "warn" };
   const given = lead !== undefined;
   const l = given ? lead : onset == null ? null : onset - t;
   if (l == null) return { text: given ? "No seizure followed (false alarm)" : "No seizure in this recording (false alarm)", tone: "bad" };

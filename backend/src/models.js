@@ -22,7 +22,8 @@ const Recording = model("Recording", new Schema({
   patient: { ...ref("Patient"), index: true },
   edf: String,
   fold: Number,
-  source: { type: String, enum: ["demo", "imported"], default: "imported" },
+  annotated: Boolean, // false = uploaded by a user without seizure annotation, so it is not scored in Results or Statistics
+  source: { type: String, enum: ["demo", "imported", "uploaded"], default: "imported" },
   duration_s: Number,
   abs_offset_s: Number, // seconds on the subject's continuous clock at the start of this file (real data only)
   labels: Object,       // optional per-window labels {"15": [...], "30": [...], "60": [...]} with -1 unscored, 0 interictal, 1 positive
@@ -44,4 +45,16 @@ const Alarm = model("Alarm", new Schema({
   handledAt: Date,
 }, { timestamps: true }));
 
-module.exports = { User, Patient, Recording, Alarm };
+// One uploaded EDF file and what happened to it. The EDF itself is deleted after processing.
+const Upload = model("Upload", new Schema({
+  patient: { ...ref("Patient"), index: true },
+  user: ref("User"),
+  filename: String,
+  size: Number,
+  status: { type: String, enum: ["queued", "processing", "done", "failed"], default: "queued" },
+  error: String,
+  recording: ref("Recording"),
+  tmpPath: String,
+}, { timestamps: true }));
+
+module.exports = { User, Patient, Recording, Alarm, Upload };

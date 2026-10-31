@@ -109,7 +109,7 @@ r.post("/recordings/import", auth, admin, w(async (q, s) => {
 r.get("/alarms", auth, w(async (q, s) => {
   const f = await onField(q.user);
   if (q.query.status) f.status = q.query.status;
-  s.json(await Alarm.find(f).sort({ createdAt: -1, time_s: 1 }).populate("patient", "code").populate("recording", "edf seizures").lean());
+  s.json(await Alarm.find(f).sort({ createdAt: -1, time_s: 1 }).populate("patient", "code").populate("recording", "edf seizures annotated").lean());
 }));
 
 r.patch("/alarms/:id", auth, w(async (q, s) => {
@@ -123,7 +123,7 @@ r.patch("/alarms/:id", auth, w(async (q, s) => {
 // Per-model summary over the recordings the user may see.
 // Hit = alarm 5 to 35 min before onset. Early = 35 to 65 min before (unscored). Anything else = false alarm.
 r.get("/results", auth, w(async (q, s) => {
-  const recs = await Recording.find(await onField(q.user)).lean();
+  const recs = (await Recording.find(await onField(q.user)).lean()).filter((x) => x.annotated !== false); // uploads without annotation cannot be scored
   const hours = recs.reduce((a, x) => a + x.duration_s, 0) / 3600;
   const perModel = {};
   for (const d of ["15", "30", "60"]) {
@@ -137,7 +137,8 @@ r.get("/results", auth, w(async (q, s) => {
 r.get("/frozen", auth, (q, s) => s.json(frozen));
 
 r.get("/stats", auth, w(async (q, s) => {
-  s.json(subjectStats(await Recording.find(await onField(q.user)).populate("patient", "code").lean()));
+  const recs = await Recording.find(await onField(q.user)).populate("patient", "code").lean();
+  s.json(subjectStats(recs.filter((x) => x.annotated !== false)));
 }));
 
 r.get("/users", auth, admin, w(async (q, s) => s.json(await User.find().select("-passwordHash").lean())));
@@ -164,5 +165,5 @@ r.post("/users/:id/password", auth, admin, w(async (q, s) => {
   const u = await User.findByIdAndUpdate(q.params.id, { passwordHash: await bcrypt.hash(password, 10) });
   u ? s.json({ ok: true }) : s.status(404).json({ error: "User not found" });
 }));
-
+r.use(require("./uploadRoutes")); // EDF upload for assigned patients
 module.exports = r;
