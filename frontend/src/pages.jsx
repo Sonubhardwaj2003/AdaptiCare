@@ -238,7 +238,7 @@ export function Results() {
       <Status loading={loading} error={error}>
         {data && (
           <>
-            <DemoNote demo={data.demo} />
+            {/* <DemoNote demo={data.demo} /> */}
             <Muted>{data.recordings} recordings, {data.hours.toFixed(1)} hours.</Muted>
             <div className="mt-2.5" />
             <Table>
